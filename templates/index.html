@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% include 'header.html' %}
+
+{% block title %}GRES APP | COTECMAR{% endblock %}
+
+{% block customCSS %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css')}}">
+{% endblock %}
+
+{% block body %}
+<div class="container" id="mainform">
+  <h2 class="fw-bold">BIENVENIDO</h2>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul class="flashes">
+          {% for message in messages %}
+            <li class="flash">{{ message }}</li>
+          {% endfor %}
+      </ul>
+    {% endif %}  
+  {% endwith %}
+
+  <form method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
+    <div class="form-group">
+        <!-- Alineación a la izquierda para "Escriba el nombre del proyecto" -->
+        <label for="projectName" style="text-align: left; display: block;">Escriba el nombre del proyecto</label>
+        <input type="text" id="projectName" name="projectName" class="form-control" placeholder="Nombre del proyecto" maxlength="50" required/>
+    </div>
+    <div class="form-group" id="collaboratorsContainer">
+        <!-- Alineación a la izquierda para "Colaboradores del proyecto" -->
+        <label for="projectCollaborators" style="text-align: left; display: block;">Colaboradores del proyecto</label>
+        <button type="button" id="addCollaboratorBtn" class="btn">Añadir participante</button>
+    </div>
+    <div class="form-group" style="margin-top: 15px;">
+        <button type="submit" id="submitBtn" class="btn" disabled>Subir</button>
+        <label for="file" class="custom-file-upload">Seleccionar Archivo</label>
+        <input type="file" name="file" id="file" accept=".xls,.xlsx" required/>
+        <a href="https://drive.google.com/uc?export=download&id=1ntZmQf6VWSVrRLUskMUrYK-2PX-1dnc1" class="download-btn" download>Descargar formato</a>
+    </div>
+</form>
+  <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const collaboratorsContainer = document.getElementById('collaboratorsContainer');
+    const addCollaboratorBtn = document.getElementById('addCollaboratorBtn');
+    let participantCount = 0; // Contador para generar índices únicos para cada participante
+
+    addCollaboratorBtn.addEventListener('click', function() {
+      mainform.classList.add('expanded');
+        const index = participantCount++; // Índice actual del participante
+
+        const formGroupDiv = document.createElement('div');
+        formGroupDiv.classList.add('form-group');
+
+        const participantRowDiv = document.createElement('div');
+        participantRowDiv.classList.add('row', 'mb-3');
+        participantRowDiv.style.margin = '1px';
+        participantRowDiv.style.borderRadius = '8px';
+
+        // Crear campos para Nombre, Cargo e Institución con índices
+        const fields = [
+            { placeholder: 'Nombre del participante', type: 'Nombre' },
+            { placeholder: 'Cargo', type: 'Cargo' },
+            { placeholder: 'Institución', type: 'Institución' }
+        ];
+
+        fields.forEach(field => {
+            const inputDiv = document.createElement('div');
+            inputDiv.classList.add(field.type === 'Nombre' ? 'col-md-5' : 'col-md-3'); // Asigna espacio según el tipo
+
+            const input = document.createElement('input');
+            input.setAttribute('type', 'text');
+            input.setAttribute('name', `projectCollaborators[${index}][${field.type}]`); // Usa el índice para diferenciar participantes
+            input.classList.add('form-control', 'mb-2');
+            input.setAttribute('placeholder', field.placeholder);
+
+            inputDiv.appendChild(input);
+            participantRowDiv.appendChild(inputDiv);
+        });
+
+        // Botón de eliminar
+        const removeBtnColumnDiv = document.createElement('div');
+        removeBtnColumnDiv.classList.add('col-md-1', 'd-flex', 'align-items-start', 'justify-content-center');
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.classList.add('btn', 'btn-danger');
+        removeBtn.textContent = 'Eliminar';
+        removeBtn.onclick = function() { formGroupDiv.remove(); };
+        removeBtnColumnDiv.appendChild(removeBtn);
+        participantRowDiv.appendChild(removeBtnColumnDiv);
+
+        formGroupDiv.appendChild(participantRowDiv);
+        collaboratorsContainer.insertBefore(formGroupDiv, addCollaboratorBtn);
+    });
+});
+</script>
+{% endblock %}

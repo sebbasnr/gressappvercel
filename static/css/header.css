@@ -1,0 +1,30 @@
+
+.navbar {
+    justify-content: left;
+    width: 100%;
+    background-color: #1B3059;
+}
+
+#navcontainer{
+    display: flex;
+    justify-content: left;
+    max-width: 100%;
+}
+
+#logo{
+    padding-right: 10px;
+}
+
+.nav-link{
+    color:white;
+}
+
+.nav-link.selected {
+    color: white;
+    font-weight: bold; 
+}
+
+.navbar-brand {
+    margin-right: 10px; 
+    margin-left: 10px; 
+}

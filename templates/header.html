@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block customCSS %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
+{% endblock %}
+
+{% block title %} Cotecmar {% endblock %}
+
+{% block body %}
+<nav class="navbar custom-navbar fixed-top">
+    <div class="container-fluid d-flex justify-content-between" id="navcontainer">
+        <a class="navbar-brand" href="#" data-bs-toggle="modal" data-bs-target="#confirmModal">
+            <img id="logo" src="{{ url_for('static', filename='img/SISTRAMLOGO.png')}}" height="40px" class="d-inline-block align-text-center" alt="Logo"> 
+            | ILS APPS
+        </a>
+
+        <button style="color: white"class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar">
+            <img src="{{ url_for('static', filename='img/list.svg')}}"> 
+        </button>
+    </div>
+
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasNavbarLabel">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
+                <!-- Adaptación de los elementos del menú a la nueva estructura -->
+                <li class="nav-item">
+                    <a class="nav-link" >Manual de operación</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link">Documento de metodología</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+
+<!-- Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Cerrar archivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ¿Está seguro de cerrar el archivo y cargar otro?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <a href="/cargarArchivo" class="btn btn-primary">Sí, cargar otro archivo</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

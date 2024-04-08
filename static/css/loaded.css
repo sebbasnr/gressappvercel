@@ -1,0 +1,382 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;746&display=swap');
+
+body {
+    margin-top: 66px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+    overflow-y: hidden;
+}
+
+#maincontainer {
+    height: 100vh;
+    max-width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    background-color: #fafafa;
+    overflow: hidden;
+}
+
+#maintable, #infoform {
+    overflow-y: auto; 
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0px 0px 10px #aaa;
+    text-align: center;
+}
+
+
+#maintable {
+    max-height: calc(100vh - 66px - 1px); 
+    max-width: 600px;
+    margin-left: -11px;
+    overflow-y: auto;
+}
+
+#infoform {
+    margin-top: 20px;
+    max-height: calc(99vh - 66px - 3px);
+    max-width: 700px;
+    border-radius: 5px;
+    overflow-y: auto;
+}
+
+
+.table-container {
+    margin-top: 1%;
+    margin-left: auto;
+    max-width: 100%;
+    transition: max-width 0.5s ease;
+    overflow-y: auto; 
+}
+
+.headerleft {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index:1000;
+    padding:  20px;
+    border-radius: 10px;
+    background-color: white;
+    box-shadow: 0px 0px 10px #aaa;
+}
+
+#maincontainer {
+    transition: max-width 0.5s ease;
+}
+
+#maintable.expanded, .table-container.expanded {
+    max-width: 100%;
+    width: 100%;
+    opacity: 1;
+    visibility: visible;
+}
+
+.table-container.expanded{margin-top: 1%;}
+
+#maintable, .table-container, #infoform {
+    transition: width 0.5s ease, opacity 0.5s ease;
+}
+
+#maintable, #infoform {
+    transition: all 0.5s ease;
+}
+
+#infoform {
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+    opacity: 1;
+    visibility: visible;
+}
+
+#infoform.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.custom-swal-modal {
+    border-radius: 15px !important;
+}
+
+.custom-swal-modal .table th {
+    font-size: 12px; /* Ajusta el tamaño de la fuente según sea necesario */
+    white-space: nowrap; /* Evita que el texto se divida en varias líneas */
+}
+
+#floatingContainer {
+    left: 36px; 
+    top:113px;
+    transform: translateX(0%);
+    position: absolute;
+    z-index: 1050;
+    background-color: white;
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    max-width: 90%;
+    min-width: 40%;
+    display: none; 
+    opacity: 0; 
+    transition: opacity 0.5s ease;  
+}
+
+.table-custom {
+    font-size: 0.8rem; /* Ajusta el tamaño de la letra */
+    border: 1px solid #ccc; /* Añade un borde a la tabla */
+    border-collapse: collapse;
+}
+
+
+#closeFloatingContainer{
+    top:-18px;
+    left: -12px;
+}
+
+.selected-row {
+    background-color: #aaaaaab7; /* Puedes ajustar el color de fondo según tus preferencias */
+}
+
+.tabla-operaciones {
+    font-size: 14px;
+    /* Otros estilos como el ancho de las columnas, padding, etc. */
+}
+
+
+.toggle-icon {
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.toggle-button {
+    transition: transform 0.3s ease;
+}
+/* Aplica estilos flexbox solo cuando el contenedor tiene la clase "centered" */
+.button-container.centered {
+    display: flex;
+    flex-direction: row; 
+    justify-content: right;
+    align-items: center;
+    width: 100%;
+}
+
+#missionButton{
+    color:#545454 ;
+    border-width: 2px;
+    font-weight: bold;
+    border-radius: 50px;
+    border-color: #545454;
+    font-size: 13px;
+}
+
+#exportarButton, #copiasButton {
+    background-color: #7C8EA6;
+    color: white;
+    margin-top: 16px;
+    min-width: 120px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+}
+
+
+#asignarMECButton{
+    background-color: #F2AE2E;
+    border-color: #F2AE2E;
+    font-weight: bold;
+    font-size: 15px;
+    width:160px;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.fade-out {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.fade-in {
+    opacity: 1;
+    visibility: visible;
+}
+
+.hidden {
+    display: none;
+}
+
+.table tr:hover {
+    cursor: pointer;
+}
+
+h2{
+color: #1e6bb8;
+text-align: center;
+font-family: 'Inter', sans-serif;
+}
+
+.table {
+margin: 0 auto;
+width: 100%;
+text-align: center;
+font-family: 'Inter', sans-serif;
+border-collapse: collapse;
+}
+
+td {
+padding: 7px; 
+}
+
+th {
+
+font-size: medium;
+text-align: center;
+font-family: 'Inter', sans-serif;
+}
+
+.flash {
+color: red;  
+font-family: 'Inter', sans-serif;
+}
+
+.submit {
+margin-bottom: 20px;
+}
+
+
+#searchInput{
+    max-height: 35px;
+    margin-top: 10px;
+    min-width: 250px;
+    max-width: 100%; 
+}
+
+.btn-format {
+margin-top: 10px;
+margin-bottom: 10px;
+font-family: 'Inter', sans-serif;
+background-color: #1e6bb8;
+color: white;
+border-radius: 5px;
+padding: 8px 16px;
+font-size: 14px;
+cursor: pointer;
+}
+
+.btn-primary:disabled {
+margin-top: 10px;
+margin-bottom: 10px;
+background-color: #808080;  
+cursor: not-allowed;
+border-radius: 5px;
+padding: 8px 16px;
+font-size: 14px;
+}
+
+#fileops, #tableops{
+    margin-right: auto;
+    margin-left: auto;
+}
+
+#expbtn{
+    margin-right: -30px;
+}
+
+input[type="file"] {
+display: none;
+}
+
+.custom-file-upload {
+font-family: 'Inter', sans-serif;
+border: 1px solid #ccc;
+display: inline-block;
+padding: 6px 12px;
+cursor: pointer;
+background-color: #1e6bb8;
+color: white;
+border-radius: 5px;
+font-size: 14px;
+transition: background-color 0.3s;
+}
+
+.custom-file-upload:hover {
+background-color: #114981;
+}
+
+.download-btn{
+font-family: 'Inter', sans-serif;
+border: 1px solid #ccc;
+display: inline-block;
+padding: 6px 12px;
+cursor: pointer;
+background-color: #1e6bb8;
+color: white;
+border-radius: 5px;
+font-size: 14px;
+text-decoration: none;
+transition: background-color 0.3s;
+}
+
+.download-btn:hover {
+    background-color: #114981;
+}
+    
+.p-3{
+    border-radius: 5px;
+    font-weight: bold; 
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+}
+
+.icon-button {
+    margin-top: 15px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    color: #333333;
+    background: #dddddd;
+    border: none;
+    outline: none;
+    border-radius: 50%;
+  }
+
+  
+  .icon-button:hover {
+    cursor: pointer;
+  }
+  
+  .icon-button:active {
+    background: #cccccc;
+  }
+  
+  .icon-button__badge {
+    font-weight: bold;
+    font-size: small;
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 20px;
+    height: 20px;
+    background: #F2AE2E;
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+  }
+  
+  
+  
+ 

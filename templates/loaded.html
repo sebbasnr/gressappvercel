@@ -1,0 +1,1417 @@
+{% extends 'base.html' %}
+{% include 'header.html' %}
+
+{% block title %}GRES APP | COTECMAR{% endblock %}
+
+{% block customCSS %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/loaded.css')}}">
+{% endblock %}
+
+{% block body %}
+<div id="groupedData" style="display:none;">{{ grouped_data | tojson | safe }}</div>
+<div class="container" id="maincontainer">
+    <div class="container" id="maintable">
+        <div class ="headerleft" style="margin-left: 1px; margin-right: 1px">
+            <div class="col-md-12">
+                <div class="row">
+                    <div class="col-md-2">
+                        <button type="button" class="icon-button">
+                            <img src="{{ url_for('static', filename='img/exclamation-circle.svg') }}" style="width:35px">
+                            <span class="icon-button__badge">2</span>
+                        </button>
+                    </div>
+                    <div class="col-md-7">
+                        <h6 id="nombreDelProyecto" style="margin-top: 10px; margin-right:5%; font-weight: bold">
+                        {{ session.get('project_name', 'Nombre de Proyecto no especificado') }}
+                        </h6>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-9">
+                        <input type="text" class="form-control search-input" id="searchInput" placeholder="Buscar CJ">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="row d-flex justify-content: flex-end" style="margin-top: -58px;">
+                            <button type="button" id="copiasButton" class="btn">Copiar</button>
+                            <button type="button" id="exportarButton" class="btn">Exportar</button>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="floatingContainer" style="display:none;">
+            <div id="headerContainer" style="display: flex; justify-content: left; align-items: top; margin-top: -8px">
+                <button type="button" id="closeFloatingContainer" style="width: 30px; height: 30px" class="icon-button">
+                    <h5 style="font-weight: bold; margin: 0; color:#31364C">X</h5>
+                </button>
+                <h5 style="font-weight: bold; color:#31364C; margin-top: 0;">| Errores encontrados en el documento</h5>
+            </div>
+            <div id="dynamicContent"></div> <!-- Contenedor para el contenido dinámico -->
+        </div>
+
+        {% if grouped_data %}
+            <div class="table-container" style="border-radius: 10px">
+                <table class="table table-hover" id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>CJ</th>
+                            <th>Nombre Equipo</th>
+                            <th>MEC</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for key, value in grouped_data.items() %}
+                        {% if key|length == 5 and not key.startswith('1') and not key.endswith('0') %}
+                            <tr class="edit-btn" data-cj="{{ key }}">
+                                <td>{{ key }}</td>
+                                <td>{{ value['Nombre_Equipo'] }}</td>
+                                <td>{{ value['MEC'] }}</td>
+                                <td><img src="{{ url_for('static', filename='img/chevron-left.svg') }}" alt="chevron" class="toggle-button"></td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+  
+    <div class="container" id="infoform">
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.14/jspdf.plugin.autotable.min.js"></script>
+<script>
+    const nombreProyectoElement = document.getElementById('nombreDelProyecto');
+    const nombreProyecto = nombreProyectoElement.textContent.trim();
+    var groupedData = JSON.parse('{{ grouped_data | tojson | safe }}');
+    var participantes = JSON.parse('{{ participantes | tojson | safe }}');
+    var operationData = JSON.parse('{{ operation_data | tojson | safe }}');
+    var erroresData = JSON.parse('{{ errores_data | tojson | safe }}');
+    var newTeamForm = `
+    <div id="formularioDinamico">
+        <div class="col-12 mt-2" style="height: 50px">
+            <button type="submit" class="btn btn-success">Guardar</button>
+            <button type="button" id="cancelarNuevoEquipo" class="btn btn-secondary">Cancelar</button>
+        </div>
+        <form id="nuevoEquipoForm" onsubmit="crearFila(event)" class="row g-4">
+            <div class="col-md-2">
+                <div class="col-12 mt-2">
+                    <label for="nuevoCjInput" class="form-label">CJ</label>
+                    <input type="text" class="form-control" id="nuevoCjInput" placeholder="3XXX1" required>
+                    <div class="invalid-feedback">El valor debe iniciar en digito mayor que 2 y menor que 8, debe finalizar en 1.</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="col-12 mt-2">
+                    <label for="nuevoNombreEquipoInput" class="form-label">Nombre Equipo</label>
+                    <input type="text" class="form-control" id="nuevoNombreEquipoInput" required>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="col-12 mt-2">
+                    <label for="copiasInput" class="form-label">Copias</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="copiasInput" min="0" value="0">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="col-12 mt-2">
+                    <button type="button" class="btn btn-primary" style="margin-top:32px" id="copiasBtn">Agregar</button>
+                </div>
+            </div>
+        </form>
+        <div id="copiasContenedor"></div>
+    </div>
+    `;    
+    var backButtonImgUrl = "{{ url_for('static', filename='img/arrow-left-circle.svg') }}";
+    var descriptButtonImgUrl = "{{ url_for('static', filename='img/question-circle.svg') }}";
+    let decisionPath = '';
+    var doc = new jspdf.jsPDF({ orientation: 'p', unit: 'mm', format: 'letter' });
+    var toggles = document.querySelectorAll('.toggle-button');
+    
+
+    Object.keys(groupedData).forEach(cj => {
+        groupedData[cj].observaciones = groupedData[cj].observaciones || [];
+    });
+    
+    configurarEventosTabla();
+
+    function valErrores(cj) {
+        let errores = [];
+
+        if (cj.length !== 5) {
+            errores.push("El CJ debe tener 5 dígitos");
+        }
+
+        if (cj.startsWith('1')) {
+            errores.push("El CJ no puede empezar en 1");
+        }
+
+        if (!/^[0-9A-Z]{5}$/.test(cj)) {
+        errores.push("El CJ debe contener solo números o letras mayúsculas");
+    }
+        
+        if (cj.endsWith('0')) {
+            errores.push("El CJ no puede terminar en 0");
+        }
+        return errores;
+    }
+
+    function mostrarErroresCJ() {
+        let contenidoTabla = `<table class='table table-custom'><thead><tr><th>CJ</th><th>Errores</th></tr></thead><tbody>`;
+
+        for (let cj in erroresData) {
+            let errores = valErrores(cj);
+            if (errores.length > 0) {
+                contenidoTabla += `<tr><td>${cj}</td><td>${errores.join(", ")}</td></tr>`;
+            }
+        }
+
+        contenidoTabla += `</tbody></table>`;
+        document.getElementById('dynamicContent').innerHTML = contenidoTabla; // Actualiza solo el contenido dinámico
+    }
+
+    function contarErrores() {
+        let totalCJConErrores = 0; // Contador de CJ con errores
+        for (let cj in erroresData) {
+            let errores = valErrores(cj);
+            if (errores.length > 0) { // Si hay al menos un error, incrementa el contador
+                totalCJConErrores += 1;
+            }
+        }
+        return totalCJConErrores; // Retorna el total de CJ con errores
+    }
+
+    function actualizarBadgeErrores() {
+        let totalCJConErrores = contarErrores(); // Obtiene el total de CJ con errores
+        document.querySelector('.icon-button__badge').textContent = totalCJConErrores; // Actualiza el badge
+    }
+    
+    // Llama a actualizarBadgeErrores para reflejar los cambios iniciales
+    actualizarBadgeErrores();
+
+    document.querySelector('.icon-button').addEventListener('click', function() {
+        const container = document.getElementById('floatingContainer');
+        container.style.display = 'block'; // Asegura que el contenedor esté "presente"
+        setTimeout(() => container.style.opacity = '1', 0); // Inicia la transición
+        mostrarErroresCJ();
+    });
+    
+    document.getElementById('closeFloatingContainer').addEventListener('click', function() {
+        const container = document.getElementById('floatingContainer');
+        container.style.opacity = '0'; // Inicia la transición para ocultar
+        setTimeout(() => container.style.display = 'none', 500); // Espera a que la transición termine para ocultar
+    });
+
+    
+
+    function validarCJ(cj) {
+        cj = cj.toString();
+        if (cj.length !== 4 && cj.length !== 5) {
+            return false;
+        }
+        if (!/[2-9]/.test(cj[0])) {
+            return false;
+        }
+
+        if (!/^[0-9a-zA-Z]+$/.test(cj)) {
+            return false;
+        }
+
+        cj = cj.toUpperCase();
+
+        if (cj.length === 5 && cj[4] === '0') {
+            return false;
+        }
+
+        if (cj.length === 4) {
+            cj += '1';
+        }
+
+        return true;
+    }
+    
+
+    function configurarEventosTabla(cjSeleccionado) {
+        document.querySelectorAll('.edit-btn').forEach(function(row) {
+            toggles = document.querySelectorAll('.toggle-button');
+            toggles.forEach(toggle => { toggle.addEventListener('click', toggleButtonBehavior); });
+            toggles.forEach(toggle => { toggle.addEventListener('click', toggleView); });
+
+            row.addEventListener('click', function() {
+                
+                if (document.querySelector('.selected-row') === null){
+
+                    var tableContainer = document.querySelector('.table-container');
+
+                    setTimeout(function () {
+                        maintable.classList.remove('expanded');
+                        tableContainer.classList.remove('expanded');
+                        tableContainer.classList.remove('collapsed');
+                        searchInput.parentElement.classList.remove('centered');
+                    }, 300); 
+
+                    setTimeout(function () {
+                        infoform.classList.remove('hidden');
+                    }, 700); 
+                }
+                
+                document.querySelectorAll('.edit-btn').forEach(function(row) { row.classList.remove('selected-row'); });
+                row.classList.add('selected-row');
+                var cj = row.querySelector('td:nth-child(1)').innerText;
+                var nombreEquipo = row.querySelector('td:nth-child(2)').innerText;
+                var MEC = row.querySelector('td:nth-child(3)').innerText;
+                var ruta = groupedData[cj]['decisionPath'];
+
+                if (MEC === '') { MEC = 'No asignado'; }
+
+                var imagePath = 'static/img/' + ruta + '.png';
+
+                var formHTML = `
+                <form id="editForm" class="row g-2">
+                    <div class="col-md-3">
+                        <div class="col-12 mt-2">
+                            <label for="cjInput" class="form-label">CJ</label>
+                            <input type="text" class="form-control float-starts" id="cjInput" value="${cj}" readonly>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <label for="mecInput" class="form-label">MEC</label>
+                            <input type="text" class="form-control float-starts" id="mecInput" value="${MEC}" readonly>
+                        </div>
+                        <div class="col-6 mt-3">
+                            <button type="button" id="asignarMECButton" class="btn btn-success">Asignar MEC</button>
+                        </div>
+                    </div>
+
+                    <!-- Columna 2 -->
+                    <div class="col-md-9" style="margin-top:16px">
+                        <div class="row">
+                            <div class="col-10">
+                                <label for="nombreEquipoInput" class="form-label">Nombre Equipo</label>
+                                <input type="text" class="form-control" id="nombreEquipoInput" value="${nombreEquipo}">
+                            </div>
+                            <div class="col-2" style="display: flex; align-items: flex-end;">
+                                <button type="button" id="exportPageButton" class="btn" style="background-color: #F2AE2E">
+                                    <img src="{{ url_for('static', filename='img/file-earmark-arrow-down.svg') }}" style="width:25px">
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <img id="imagenDecision" src="${imagePath}" alt="" style="max-width: 100%; height: auto;">
+                        </div>
+                    </div>
+                </form>
+
+                <div class="mt-4" id="observacionesContainer">
+                    <!-- La tabla de observaciones se generará aquí -->
+                </div>
+
+                <div class="mt-4" id="childTeamsContainer">
+                    <!-- La tabla de equipos hijos se generará aquí -->
+                </div>
+
+                
+            `;
+
+                document.getElementById('infoform').innerHTML = formHTML;
+
+
+                actualizarListaHijos(cj);
+                actualizarListaObservaciones(cj)
+
+                document.getElementById('editForm').addEventListener('submit', function (event) {
+                    event.preventDefault();
+                });
+            });
+        });
+
+
+        document.getElementById('searchInput').addEventListener('input', function () {
+            var searchTerm = this.value.toLowerCase();
+            var rows = document.querySelectorAll('#dataTable tbody tr');
+
+            rows.forEach(function (row) {
+                var cj = row.querySelector('td:nth-child(1)').innerText.toLowerCase();
+                var nombreEquipo = row.querySelector('td:nth-child(2)').innerText.toLowerCase();
+
+                if (cj.includes(searchTerm) || nombreEquipo.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+
+
+    function actualizarTabla(cjSeleccionado) {
+        var table = document.getElementById('dataTable').querySelector('tbody');
+        table.innerHTML = '';
+        
+        for (var key in groupedData) {
+            // Verifica si el elemento tiene asignado un valor en el campo ['copia']
+            // y si ese valor es diferente a vacío, no lo incluye en la tabla
+            if (!groupedData[key]['copia'] || groupedData[key]['copia'] === "") {
+                var value = groupedData[key];
+                var row = document.createElement('tr');
+                row.classList.add('edit-btn');
+                row.dataset.cj = key;
+                row.innerHTML = `
+                    <td>${key}</td>
+                    <td>${value['Nombre_Equipo']}</td>
+                    <td>${value['MEC']}</td>
+                    <td><img src="{{ url_for('static', filename='img/chevron-right.svg') }}" alt="chevron" class="toggle-button"></td>
+                `;
+                table.appendChild(row);
+            }
+        }
+        
+        // Volver a seleccionar el elemento si había alguno seleccionado antes de la actualización
+        if (cjSeleccionado) {
+            var elementoASeleccionar = document.querySelector(`.edit-btn[data-cj="${cjSeleccionado}"]`);
+            if (elementoASeleccionar) {
+                elementoASeleccionar.classList.add('selected-row');
+            }
+        }
+    }
+
+    function actualizarListaObservaciones(cj) {
+        var observaciones = groupedData[cj].observaciones || [];
+        var observacionesHtml = ''; 
+
+        observaciones.forEach(function(observacion) {
+            var textoCortado = observacion.texto.length > 50 ? observacion.texto.substring(0, 50) + '...' : observacion.texto;
+            
+            observacionesHtml += `
+                <tr>
+                    <td>${observacion.preguntaId}</td>
+                    <td title="${observacion.texto.replace(/"/g, '&quot;')}">${textoCortado}</td>
+                </tr>
+            `;
+        });
+
+        if (observaciones.length > 0) {
+            var tablaObservacionesHtml = `
+            <h5 style="text-align: left;font-weight: lighter;">Observaciones</h5>
+            <table class="table table-hover" style="table-layout: fixed;">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">ID Pregunta</th>
+                        <th style="width: 80%;">Observación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${observacionesHtml} <!-- Insertar filas de observaciones aquí -->
+                </tbody>
+            </table>
+            `;
+            document.getElementById('observacionesContainer').innerHTML = tablaObservacionesHtml;
+        } else {
+            document.getElementById('observacionesContainer').innerHTML = '<h5>No tiene observaciones</h5>';
+        }
+    }
+
+    function actualizarListaHijos(selectedCJ) {
+        var childTeams = [];
+        var hayCopias = false;
+    
+        for (var key in groupedData) {
+            if (groupedData[key]['copia'] === selectedCJ) {
+                hayCopias = true;
+                var childTeam = { key: key, value: groupedData[key] };
+                childTeams.push(childTeam);
+            }
+        }
+    
+        var childRowsHtml = childTeams.map(function(team) {
+            var key = team.key;
+            // Agregar botón de eliminar con un evento onclick que llama a una función eliminarCopia pasando el CJ
+            return `<tr id="row-${key}"><td>${key}</td><td>${team.value['Nombre_Equipo']}</td><td><button class="btn btn-danger btn-sm" onclick="eliminarCopia('${key}')">Eliminar</button></td></tr>`;
+        }).join('');
+    
+        var childTableHtml = '';
+    
+        if (hayCopias) {
+            childTableHtml = `
+            <h5 style="text-align: left;">Copias</h5>
+            <table class="table table-hover" style="table-layout: fixed;">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">CJ</th>
+                        <th style="width: 60%;">Nombre Equipo</th>
+                        <th style="width: 20%;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${childRowsHtml}
+                </tbody>
+            </table>
+            `;
+        } else {
+            childTableHtml = `<h5>No tiene copias</h5>`;
+        }
+    
+        document.getElementById('childTeamsContainer').innerHTML = childTableHtml;
+    }
+    
+
+    function eliminarCopia(cj) {
+        // Actualizar groupedData para quitar la copia y MEC
+        if (groupedData[cj]) {
+            groupedData[cj]['copia'] = "";
+            groupedData[cj]['MEC'] = "";
+        }
+    
+        // Eliminar la fila de la tabla
+        var row = document.getElementById(`row-${cj}`);
+        if (row) {
+            row.remove();
+        }
+    
+        actualizarTabla();
+        configurarEventosTabla()
+    }
+
+
+
+    function eliminarUltimoDigito() { decisionPath = decisionPath.slice(0, -1); }
+
+    let capturarEventosTeclado = true;
+    let preguntaActual = null;
+
+    function mostrarPregunta(titulo, onConfirm, onDeny, onBack, onComment, row, decision, preguntaId,descripcionDetallada) {
+        let funcionActual = () => mostrarPregunta(titulo, onConfirm, onDeny, onBack, onComment, row, decision, preguntaId, descripcionDetallada);
+
+        var backButtonHtml = onBack ? `<button id="backButton" class="btn"><img src="${backButtonImgUrl}" style="width:35px"></button>` : '';
+
+        Swal.fire({
+            allowEscapeKey: false,
+            allowEnterKey: false,
+            allowTabKey: false,
+            showCancelButton: false, 
+            showDenyButton: false,
+            showConfirmButton: false,
+            showCloseButton: false,
+            buttonsStyling: false,
+            customClass: {
+                popup: 'custom-swal-modal', // Asegúrate de que esta clase esté definida en tu CSS
+            },
+            
+            html: `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                ${backButtonHtml}
+                <div style="margin-left: auto;"> <!-- Este div empuja el botón de misión a la derecha -->
+                    <button id="missionButton" class="btn">Misiones</button>
+                    <button id="descriptButton" class="btn"><img src="${descriptButtonImgUrl}" style="width:35px"></button>
+                    
+                </div>
+            </div>
+            <div><h5 style="font-weight: bold;">${titulo}</h5></div>
+            <div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
+                <button id="yesButton" class="btn btn-success">Sí</button>
+                <button id="noButton" class="btn btn-danger">No</button>
+                <button id="commentButton" class="btn btn-secondary">Observación</button>
+            </div>
+        `,
+            
+        didOpen: () => {
+            document.getElementById('yesButton').addEventListener('click', () => {
+                Swal.clickConfirm();
+            });
+
+            document.getElementById('noButton').addEventListener('click', () => {
+                Swal.clickCancel(); 
+            });
+
+            const backButton = document.getElementById('backButton');
+            if (backButton) { // Solo agrega el eventListener si backButton existe
+                backButton.addEventListener('click', function() {
+                    eliminarUltimoDigito(); 
+                    onBack(row);
+                });
+            }
+
+            document.getElementById('commentButton').addEventListener('click', function() {
+                capturarEventosTeclado = false;
+                Swal.fire({
+                    customClass: {
+                        popup: 'custom-swal-modal',
+                    },
+                    input: "textarea",
+                    inputLabel: "Observación",
+                    inputPlaceholder: "Escribe tu observación aquí...",
+                    inputAttributes: {
+                        "aria-label": "Escribe tu observación aquí"
+                    },
+                    showCancelButton: true,
+                    confirmButtonColor: '#F2AE2E',
+                }).then((result) => {
+                    if (result.value) {
+                        agregarObservacion(row, preguntaId, result.value);
+                    }
+                    capturarEventosTeclado = true;
+                    mostrarPregunta(titulo, onConfirm, onDeny, onBack, onComment, row, decision, preguntaId,descripcionDetallada);
+                });
+            });
+
+            function mostrarDatosOperacion() {
+                let tablaHtml = `<table class="table" style="font-size: 12px;"><thead><tr><th>Operación</th><th>Sub-operación</th><th>Velocidad (nudos)</th></tr></thead><tbody>`;
+                    for (key in operationData) {            
+                        tablaHtml += `<tr><td>${operationData[key]['Operación']}</td><td>${operationData[key]['Sub-operación']}</td><td>${operationData[key]['Velocidad']}</td></tr>`;
+                    };
+                tablaHtml += '</tbody></table>';
+ 
+                Swal.fire({
+                    title: 'Datos de Operación',
+                    html: tablaHtml,
+                    customClass: 'custom-swal',
+                    confirmButtonText: 'Volver',
+                    confirmButtonColor: '#F2AE2E',
+                    width: '800px',
+                    padding: '3em',
+                    showCloseButton: true,
+                    customClass: {
+                        popup: 'custom-swal-modal', // Asegúrate de que esta clase esté definida en tu CSS
+                    },
+                }).then(() => {
+                    if (preguntaActual) {
+                        preguntaActual(); 
+                    }
+                });
+            }
+
+            const descriptButton = document.getElementById('descriptButton');
+                descriptButton.addEventListener('click', () => {
+                    Swal.fire({
+                        title: 'Descripción detallada',
+                        html: `<p>${descripcionDetallada}</p>`,
+                        icon: 'info',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#F2AE2E',
+                        customClass: {
+                            popup: 'custom-swal-modal', // Asegúrate de que esta clase esté definida en tu CSS.
+                        },
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Vuelve a mostrar la pregunta original después de cerrar el Swal de descripción.
+                            funcionActual();
+                        }
+                    });
+                });
+
+
+            document.getElementById('missionButton').addEventListener('click', () => {
+                // Almacenas la función actual para que pueda ser llamada después de cerrar el modal
+                preguntaActual = () => mostrarPregunta(titulo, onConfirm, onDeny, onBack, onComment, row, decision, preguntaId,descripcionDetallada);
+                mostrarDatosOperacion();
+            });
+        }
+
+        }).then((result) => {
+            if (result.isConfirmed) {
+                decisionPath += '1';
+                onConfirm(row);
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                decisionPath += '0';
+                onDeny(row);
+            } 
+        });
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (Swal.isVisible() && capturarEventosTeclado) {
+            switch(e.key) {
+                case 's':
+                    e.preventDefault();
+                    Swal.clickConfirm();
+                    break;
+                case 'n':
+                    e.preventDefault();
+                    Swal.clickCancel();
+                    break;
+                case 'Backspace':
+                    e.preventDefault(); // Previene el comportamiento predeterminado del navegador para Backspace
+                    const backButton = document.getElementById('backButton');
+                    if (backButton) {
+                        backButton.click(); // Simula un clic en el botón de regreso
+                    }
+                    break;            
+            }
+        }
+    });
+
+
+    function agregarObservacion(cj, preguntaId, texto) {
+        if (groupedData.hasOwnProperty(cj)) {
+            // Buscar si ya existe una observación con el mismo ID de pregunta
+            var observacionExistente = groupedData[cj].observaciones.find(function(obs) {
+                return obs.preguntaId === preguntaId;
+            });
+
+            // Si ya existe una observación con el mismo ID de pregunta, actualizar su texto
+            if (observacionExistente) {
+                observacionExistente.texto = texto;
+            } else {
+                // Si no existe una observación con el mismo ID de pregunta, agregar una nueva observación
+                groupedData[cj].observaciones.push({
+                    preguntaId: preguntaId,
+                    texto: texto
+                });
+            }
+        } else {
+            console.error("CJ no encontrado en groupedData.");
+        }
+    }
+    
+    function pregunta1(mec, cj) {
+        decisionPath = '';
+        mostrarPregunta(
+            '¿SE PIERDE LA CAPACIDAD DEL SISTEMA SI EL EQUIPO QUEDA INOPERATIVO?<br><p style="font-weight: normal">Describa la capacidad que se<br> pierde en caso de ser afirmativo</p>',
+            (row) => pregunta2(row), // Envuelve pregunta2 en una función flecha
+            function() { asignarMEC(mec, cj); cargarImagen(decisionPath); },
+            null,
+            null,
+            cj,
+            decisionPath,
+            "1",
+            "<div style='text-align: justify;'>Evalúe si la falla del equipo afecta parcial o totalmente la funcionalidad del sistema del cual el equipo hace parte.  </div>"
+        );
+    }
+    function pregunta2(row) {
+        mostrarPregunta(
+            '¿REPRESENTA UN EFECTO ADVERSO SOBRE EL PERSONAL, EL SISTEMA O EL MEDIO AMBIENTE?',
+            () => pregunta6(row),
+            () => recursivo(row, 2), // Pasamos 2 como preguntaOrigen
+            () => pregunta1('MEC 1', row),
+            null,
+            row,
+            decisionPath,
+            "2",
+            "<div style='text-align: justify;'>Evalúe si al quedar inoperativo el equipo, es decir, no cumplir su función, se refleja una consecuencia negativa sobre el personal, el sistema o el medio ambiente. </div>"
+        );
+    }
+    function pregunta6(row) {
+        mostrarPregunta(
+            '¿EXISTE REDUNDANCIA DENTRO DEL SISTEMA PARA MITIGAR EL EFECTO ADVERSO PROVOCADO?',
+            () => recursivo(row, 6), // Pasamos 6 como preguntaOrigen
+            () => { asignarMEC('MEC 4', row); cargarImagen(decisionPath); },
+            () => pregunta2(row),
+            null,
+            row,
+            decisionPath,
+            "6",
+            "<div style='text-align: justify;'>Considere que la respuesta es afirmativa si dentro del sistema existe un subsistema en paralelo que cumpla con la misma función y pueda suplir la funcionalidad del equipo inoperativo. </div>"
+        );
+    }
+
+    function recursivo(row, preguntaOrigen) {
+        mostrarPregunta(
+            '¿LA CADENA DE SUCESOS CAUSA ALGUNA DEGRADACIÓN SOBRE ALGUNA DE LAS MISIONES?',
+            () => pregunta4(row),
+            () => { asignarMEC('MEC 1', row); cargarImagen(decisionPath); },
+            // Utilizamos preguntaOrigen para decidir a qué pregunta regresar
+            () => {
+                switch (preguntaOrigen) {
+                    case 2:
+                        pregunta2(row);
+                        break;
+                    case 6:
+                        pregunta6(row);
+                        break;
+                    // Añade más casos según sea necesario
+                    default:
+                        console.log("Origen no reconocido");
+                }
+            },
+            null,
+            row,
+            decisionPath,
+            "4",
+            "<div style='text-align: justify;'>Considere una serie de eventos que están conectados entre sí causados por la incapacidad del equipo de operar.<br><br> Evalúe si el buque es capaz de llevar a cabo todas las misiones de manera exitosa (no afecta)  <br><br> En caso de no hacerlo, significa que sí afecta alguna o más misiones. </div>"
+        );
+    }
+
+    function pregunta4(row) {
+        mostrarPregunta(
+            '¿EXISTEN REDUNDANCIAS DENTRO DEL SUBSISTEMA?',
+            () => pregunta7(row),
+            () => pregunta5(row),
+            () => recursivo(row),
+            null,
+            row,
+            decisionPath,
+            "5",
+            "<div style='text-align: Entiéndase como subsistema la línea de trabajo del equipo. Se habla de redundancia pasiva cuando se tiene un relevo disponible en stand-by para el equipo.</div>"
+        );
+    }
+    function pregunta5(row) {
+        mostrarPregunta(
+            '¿DE QUÉ TAMAÑO SERÍAN LAS PÉRDIDAS? <br><p style="font-weight: normal; font-size: 14px">(Presione tecla S para seleccionar A, tecla N para seleccionar B)</p>(A) Menores o una misión<br>(B) Más de una misión',
+            () => { asignarMEC('MEC 2', row); cargarImagen(decisionPath); },
+            () => { asignarMEC('MEC 3', row); cargarImagen(decisionPath); },
+            () => pregunta4(row),
+            null,
+            row,
+            decisionPath,
+            "7",
+            "<div style='text-align: justify;'>Se consideran pérdidas menores cuando el buque es capaz de realizar las misiones sin ningún inconveniente aún teniendo el equipo inoperativo. <br><br> Se consideran pérdidas de una misión cuando el equipo no puede llevar a cabo una misión específicamente. <br><br> Se consideran pérdidas de más de una misión cuando el buque no puede llevar a cabo varias misiones al tener inoperativo el equipo en observación.</div>"
+        );
+    
+        // Dentro de didOpen de mostrarPregunta, ajusta para incluir:
+        document.getElementById('yesButton').innerText = 'A';
+        document.getElementById('noButton').innerText = 'B';
+    
+        document.getElementById('yesButton').addEventListener('click', () => {
+            decisionPath += '1';
+            asignarMEC('MEC 2', row);
+            cargarImagen(decisionPath);
+            Swal.close();
+        });
+    
+        document.getElementById('noButton').addEventListener('click', () => {
+            decisionPath += '0';
+            asignarMEC('MEC 3', row);
+            cargarImagen(decisionPath);
+            Swal.close();
+        });
+    }
+    function pregunta7(row) {
+        mostrarPregunta(
+            '¿Mitiga completamente el efecto de la degradación?',
+            () => { asignarMEC('MEC 1', row); cargarImagen(decisionPath); }, // Acción de confirmación
+            () => pregunta5(row), // Acción para el botón de "No"
+            () => pregunta4(row),
+            null,
+            row,
+            decisionPath,
+            "6",
+            "<div style='text-align: justify;'>Considere si el equipo de relevo es capaz de dar el mismo rendimiento dentro del subsistema durante un tiempo adecuado. </div>"
+        );
+    }
+    
+
+    function asignarMEC(mec, cj) {
+        var row = document.querySelector(`#maintable tr[data-cj="${cj}"]`);
+        if (row) {
+            row.querySelector('td:nth-child(3)').innerText = mec;
+
+            var mecInput = document.getElementById('mecInput');
+            if (mecInput) { mecInput.value = mec; }
+
+            if (groupedData[cj]) {
+                groupedData[cj]['MEC'] = mec; 
+                groupedData[cj]['decisionPath'] = decisionPath;
+
+                for (var key in groupedData) {
+                    if (groupedData[key]['copia'] === cj) { groupedData[key]['MEC'] = mec; groupedData[key]['decisionPath'] = decisionPath; }
+                }
+            }
+        }
+        actualizarListaObservaciones(cj);
+    }
+
+
+    function cargarImagen(decisionPath) {
+        let imagePath = 'static/img/' + decisionPath + '.png';
+
+        let img = document.getElementById('imagenDecision');
+        img.src = imagePath;
+        img.style.display = 'block';
+    }
+
+
+    document.getElementById('infoform').addEventListener('click', function(event) {
+
+        var target = event.target;
+        while (target != null && target.id !== 'exportPageButton') { target = target.parentNode; }
+        
+        if (target != null && target.id === 'exportPageButton') {
+            var cj = document.getElementById('cjInput').value;
+            var MEC = groupedData[cj]['MEC'] || 'No asignado';
+
+            // Verificar si el MEC está asignado
+            if (MEC === 'No asignado') {
+                // Mostrar mensaje con Swal
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se puede exportar PDF',
+                    text: 'No se puede exportar hasta que se asigne un MEC.',
+                });
+
+            } else {
+                //marcador
+                var nombreEquipo = groupedData[cj]['Nombre_Equipo'];
+                var ruta = groupedData[cj]['decisionPath'];
+                var imagePath = 'static/img/' + ruta + '.png'; // Asegúrate de tener la imagen disponible
+
+                var doc = new jspdf.jsPDF({
+                    orientation: 'p', // 'p' para retrato
+                    unit: 'mm', // unidades en milímetros
+                    format: 'letter' // formato de carta
+                });
+
+                var xImage = 10; // Posición inicial de la imagen
+                var imageWidth = 120, imageHeight = 140; // Tamaño de la imagen
+                var xObservaciones = xImage + imageWidth + 5; // Posición inicial de las observaciones
+                var maxWidth = doc.internal.pageSize.getWidth() - xObservaciones - 10; // Ancho máximo para las observaciones
+                var nombreMaxWidth = 180;
+                const imagenFondo = 'static/img/plantillaPDF2.png';
+
+                y = 30
+                // CJ y Nombre del Equipo en negrita y tamaño 15
+                doc.addImage(imagenFondo, 'PNG', 0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight());
+                // Establece la fuente y el tamaño para el texto
+                doc.setFont('helvetica', 'bold').setFontSize(14);
+                doc.setTextColor(27, 48, 89);
+
+                // Preparar el texto del CJ y el nombre del equipo para manejar el salto de línea si es necesario
+                var textoCompleto = `CJ: ${cj} - ${nombreEquipo}`;
+                var lineas = doc.splitTextToSize(textoCompleto, nombreMaxWidth); // Divide el texto para ajustarse al ancho máximo
+
+                // Imprime cada línea y ajusta la posición Y para las siguientes líneas
+                lineas.forEach(function(linea) {
+                    doc.text(linea, 10, y);
+                    y += 7; // Ajusta el espaciado entre líneas según sea necesario
+                });
+
+
+                y += 3
+                // MEC en tamaño 12
+                doc.setFontSize(11);
+                doc.text(`MEC: ${MEC}`, 10, y);
+
+                yImage = y + 5;
+                doc.setDrawColor(0);
+                doc.setFillColor(255, 255, 255);
+                doc.setDrawColor(27, 48, 89); 
+                doc.roundedRect(xImage, yImage, imageWidth, imageHeight, 0, 0, 'FD');
+
+                doc.addImage(imagePath, 'PNG', xImage, yImage, imageWidth, imageHeight);
+
+                var yObservaciones = yImage + 5; 
+
+                var observaciones = groupedData[cj].observaciones || [];
+                if (observaciones.length > 0) {
+                    doc.setFont('helvetica', 'bold');
+                    // Establece el color del texto para el título "Descripciones"
+                    doc.setTextColor(27, 48, 89); // Azul oscuro para el título
+                    doc.text('Descripciones:', xObservaciones, yObservaciones);
+                    yObservaciones += 6; 
+
+                    doc.setFont('helvetica', 'normal');
+                    // Establece el color del texto para las observaciones a gris (80, 80, 80)
+                    doc.setTextColor(80, 80, 80);
+                    observaciones.forEach(function(observacion) {
+                        var textoObservacion = `Pregunta ${observacion.preguntaId}: ${observacion.texto}`;
+                        var lines = doc.splitTextToSize(textoObservacion, maxWidth); // Divide el texto para ajustarse al ancho máximo
+                        lines.forEach(function(line) {
+                            doc.text(line, xObservaciones, yObservaciones);
+                            yObservaciones += 6; // Incrementa la posición Y para la siguiente línea
+                        });
+                    });
+                    // Restablece el color del texto a negro (o cualquier otro color deseado) después de imprimir las observaciones
+                }
+
+                var yFinal = Math.max(yImage + imageHeight, yObservaciones) + 10, yCopias = yFinal, childTeams = [];
+                Object.keys(groupedData).forEach(key => {
+                    if (groupedData[key]['copia'] === cj) {
+                        childTeams.push({ key: key, value: groupedData[key] });
+                    }
+                });
+
+                // Prepare data for the copies table
+                const copiesData = childTeams.map(team => [team.key, team.value['Nombre_Equipo']]);
+
+                // Check if there are copies to display
+                if (copiesData.length > 0) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.setTextColor(27, 48, 89);
+                    doc.text('Copias:', 10, yCopias); 
+                    yCopias += 6; 
+
+                    doc.autoTable({
+                        startY: yCopias,
+                        head: [['CJ', 'Nombre Equipo']], // Table column headers
+                        body: copiesData, // Data for the table
+                        theme: 'grid',
+                        headStyles: { fillColor: [27, 48, 89] },
+                        margin: { left: 10, top: 40, bottom: 30},
+                        tableWidth: 'auto',
+                    });
+
+                    doc.addImage(imagenFondo, 'PNG', 0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight());
+                    yCopias = doc.lastAutoTable.finalY + 10;
+                }
+
+                doc.save(`GRES-${cj}.pdf`);
+            }
+        }
+
+        if (event.target.id === 'asignarMECButton') {
+            var mec = 'MEC 1';
+            var cj = document.getElementById('cjInput').value; 
+            groupedData[cj].observaciones = [];
+            pregunta1(mec, cj); 
+        }
+
+        if (event.target.id === 'copiasBtn') {
+
+            const cjBase = document.getElementById('nuevoCjInput').value;
+
+            // Validar CJ con la función mejorada
+            if (!validarCJ(cjBase)) {
+            alert('El CJ debe iniciar en un numero entre 2 y 9 y tener 4 o 5 dígitos. El último dígito no puede ser 0.');
+            return;
+            }
+
+            const numeroCopias = parseInt(document.getElementById('copiasInput').value);
+            const baseCj = cjBase.substring(0, 4);
+
+            const contenedor = document.getElementById('copiasContenedor');
+            contenedor.innerHTML = '';
+
+            const ultimoDigito = parseInt(cjBase.slice(-1));
+            let sufijoInicial = ultimoDigito;
+
+            //marcadorrr
+            for (let sufijoInicial; i <= numeroCopias + 1; i++) {
+            let sufijoCj;
+
+            if (i <= ultimoDigito) {
+                sufijoCj = i;
+                console.log(sufijoCj)
+            } else {
+                sufijoCj = sufijoInicial++;
+
+                if (sufijoCj > 9) {
+                const letraAscii = sufijoCj - 9 + 64;
+                sufijoCj = String.fromCharCode(letraAscii);
+                }
+            }
+
+            const fila = document.createElement('div');
+            fila.className = 'row g-3 mt-2';
+
+            fila.innerHTML = `
+                <div class="col-md-2">
+                <input type="text" class="form-control" value="${baseCj}${sufijoCj}">
+                </div>
+                <div class="col-md-8">
+                <input type="text" class="form-control" placeholder="Nombre Equipo" required>
+                </div>
+                <div class="col-md-2">
+                <button type="button" class="btn btn-danger" onclick="this.parentNode.parentNode.remove()">
+                    X
+                </button>
+                </div>
+            `;
+
+            contenedor.appendChild(fila);
+            }
+        }
+    });
+
+
+    document.getElementById('infoform').addEventListener('keyup', function(event) {
+        if (event.target.id === 'nombreEquipoInput' && event.key === 'Enter') {
+            var newNombre = event.target.value; 
+            var selectedRow = document.querySelector('.selected-row');
+            if (selectedRow) { selectedRow.querySelector('td:nth-child(2)').innerText = newNombre; }
+        }
+    });
+
+    function toggleView() {
+        var maintable = document.getElementById('maintable');
+        var infoform = document.getElementById('infoform');
+        var tableContainer = document.querySelector('.table-container');
+        var addTeamBtn = document.getElementById('addTeamBtn');
+        var exportarButton = document.getElementById('exportarButton');
+        var button = document.querySelector('.toggle-button');
+        var tools = document.getElementById('tools');
+
+        setTimeout(function () {
+            maintable.classList.toggle('expanded');
+            tableContainer.classList.toggle('expanded');
+            tableContainer.classList.toggle('collapsed');
+        }, 300); 
+
+        setTimeout(function () {
+            infoform.classList.toggle('hidden');
+        }, 700); 
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+        var selectedRowExists = document.querySelector('.selected-row') !== null;
+        
+        document.querySelectorAll('.toggle-button').forEach(function(button) { button.addEventListener('click', toggleView); });
+
+        if (!selectedRowExists) { toggleView(); }
+    });
+
+
+    function toggleButtonBehavior() {
+        toggles.forEach(toggle => {
+            if (toggle.src.includes('chevron-right')) {
+            toggle.src = '{{ url_for("static", filename="img/chevron-left.svg") }}';
+            } else {
+            toggle.src = '{{ url_for("static", filename="img/chevron-right.svg") }}';
+            }
+        });
+    }
+
+
+    function generarHTMLParaCJ(cj) {
+        const mec = groupedData[cj]?.MEC || 'No asignado';
+        const nombreEquipo = groupedData[cj]?.Nombre_Equipo || 'Nombre no disponible';
+        const rutaImagen = `static/img/${groupedData[cj]?.decisionPath || 'default'}.png`;
+
+        let observacionesHtml = '';
+        if (groupedData[cj]?.observaciones && groupedData[cj].observaciones.length > 0) {
+            observacionesHtml = '<h5 style="text-align: left;font-weight: lighter;">Observaciones</h5><table class="table table-hover" style="table-layout: fixed;"><thead><tr><th style="width: 20%;">ID Pregunta</th><th style="width: 80%;">Observación</th></tr></thead><tbody>';
+            groupedData[cj].observaciones.forEach(observacion => {
+                observacionesHtml += `<tr><td>${observacion.preguntaId}</td><td>${observacion.texto}</td></tr>`;
+            });
+            observacionesHtml += '</tbody></table>';
+        } else {
+            observacionesHtml = '<h5>No tiene observaciones</h5>';
+        }
+
+        const html = `
+            <div style="padding: 20px; background: #FFF; border: 1px solid #ccc;">
+                <div style="margin-bottom: 20px;">
+                    <label>CJ: </label><span>${cj}</span>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label>MEC: </label><span>${mec}</span>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label>Nombre Equipo: </label><span>${nombreEquipo}</span>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <img src="${rutaImagen}" alt="Imagen Decision" style="max-width: 100%; height: auto;">
+                </div>
+                ${observacionesHtml}
+            </div>
+        `;
+
+        return html;
+    }
+
+
+    document.getElementById("exportarButton").addEventListener("click", async function () {
+        doc = new jspdf.jsPDF({ orientation: 'p', unit: 'mm', format: 'letter' });
+        const imagenFondo = 'static/img/plantillaPDF2.png';
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 10; // Define un margen para los textos
+        const maxWidth = pageWidth - (margin * 2); // Ancho máximo para el texto, considerando los márgenes
+        const titulo = "ANEXO DE: " + nombreProyecto;
+    
+        doc.setFont('helvetica', 'bold').setFontSize(22).setTextColor(27, 48, 89);
+        let y = (pageHeight / 2) - 20;
+    
+        // Divide el texto del título si es demasiado largo para una sola línea
+        const lineasTitulo = doc.splitTextToSize(titulo, maxWidth);
+    
+        // Imprime cada línea del título ajustada al centro
+        lineasTitulo.forEach(function(linea) {
+            const tituloWidth = doc.getTextWidth(linea);
+            const tituloX = (pageWidth - tituloWidth) / 2;
+            doc.text(linea, tituloX, y);
+            y += 10; // Incrementa 'y' para la siguiente línea
+        });
+    
+        // Ajustes para la lista de participantes
+        y += 10; // Espacio adicional después del título
+        doc.setFont('helvetica', 'normal').setFontSize(14).setTextColor(0, 0, 0);
+    
+        Object.values(participantes).forEach(p => {
+            const textoParticipante = `${p.Cargo} ${p.Nombre} ${p.Institución}`;
+            const lineasParticipante = doc.splitTextToSize(textoParticipante, maxWidth);
+
+        lineasParticipante.forEach(function(linea) {
+            const textoWidth = doc.getTextWidth(linea);
+            const textoX = (pageWidth - textoWidth) / 2; 
+            doc.text(linea, textoX, y);
+            y += 10; // Incrementa 'y' para la siguiente línea del participante
+            });
+        });
+    
+        // Continúa con la lógica para añadir el fondo y las páginas de los equipos como en tu código original
+        doc.addImage(imagenFondo, 'PNG', 0, 0, pageWidth, pageHeight);
+        doc.addPage(); 
+
+    
+        const rows = document.querySelectorAll("#dataTable tbody tr");
+    
+        rows.forEach((row, index) => {
+
+            if (index > 0) {
+                doc.addPage();
+            }
+
+            const cj = row.querySelector("td:nth-child(1)").innerText;
+            const nombreEquipo = row.querySelector("td:nth-child(2)").innerText;
+            const MEC = row.querySelector("td:nth-child(3)").innerText;
+            var ruta = groupedData[cj]['decisionPath'];
+            let imagePath = 'static/img/' + ruta + '.png'; 
+            var xImage = 10; 
+            var imageWidth = 120, imageHeight = 140; 
+            var xObservaciones = xImage + imageWidth + 5; 
+            var maxWidth = doc.internal.pageSize.getWidth() - xObservaciones - 10; 
+            var nombreMaxWidth = 180;
+            
+
+            y = 30
+            
+            doc.addImage(imagenFondo, 'PNG', 0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight());
+           
+            doc.setFont('helvetica', 'bold').setFontSize(14);
+            doc.setTextColor(27, 48, 89);
+
+            var textoCompleto = `CJ: ${cj} - ${nombreEquipo}`;
+            var lineas = doc.splitTextToSize(textoCompleto, nombreMaxWidth); // Divide el texto para ajustarse al ancho máximo
+
+            // Imprime cada línea y ajusta la posición Y para las siguientes líneas
+            lineas.forEach(function(linea) {
+                doc.text(linea, 10, y);
+                y += 7; // Ajusta el espaciado entre líneas según sea necesario
+            });
+
+
+            y += 3
+            // MEC en tamaño 12
+            doc.setFontSize(11);
+            doc.text(`MEC: ${MEC}`, 10, y);
+
+            yImage = y + 5;
+            doc.setDrawColor(0);
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(27, 48, 89); 
+            doc.roundedRect(xImage, yImage, imageWidth, imageHeight, 0, 0, 'FD');
+
+            doc.addImage(imagePath, 'PNG', xImage, yImage, imageWidth, imageHeight);
+
+            var yObservaciones = yImage + 5; 
+
+            var observaciones = groupedData[cj].observaciones || [];
+            if (observaciones.length > 0) {
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(27, 48, 89); 
+                doc.text('Descripciones:', xObservaciones, yObservaciones);
+                yObservaciones += 6; 
+
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(80, 80, 80);
+                observaciones.forEach(function(observacion) {
+                    var textoObservacion = `Pregunta ${observacion.preguntaId}: ${observacion.texto}`;
+                    var lines = doc.splitTextToSize(textoObservacion, maxWidth); 
+                    lines.forEach(function(line) {
+                        doc.text(line, xObservaciones, yObservaciones);
+                        yObservaciones += 6; 
+                    });
+                });
+                // Restablece el color del texto a negro (o cualquier otro color deseado) después de imprimir las observaciones
+            }
+
+            var yFinal = Math.max(yImage + imageHeight, yObservaciones) + 10, yCopias = yFinal, childTeams = [];
+            Object.keys(groupedData).forEach(key => {
+                if (groupedData[key]['copia'] === cj) {
+                    childTeams.push({ key: key, value: groupedData[key] });
+                }
+            });
+
+            // Prepare data for the copies table
+            const copiesData = childTeams.map(team => [team.key, team.value['Nombre_Equipo']]);
+
+            // Check if there are copies to display
+            if (copiesData.length > 0) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(27, 48, 89);
+                doc.text('Copias:', 10, yCopias); 
+                yCopias += 6; 
+
+                doc.autoTable({
+                    startY: yCopias,
+                    head: [['CJ', 'Nombre Equipo']], // Table column headers
+                    body: copiesData, // Data for the table
+                    theme: 'grid',
+                    headStyles: { fillColor: [27, 48, 89] },
+                    margin: { left: 10, top: 40, bottom: 30},
+                    tableWidth: 'auto',
+                });
+
+                doc.addImage(imagenFondo, 'PNG', 0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight());
+                yCopias = doc.lastAutoTable.finalY + 10;
+            }
+
+        
+        if (y > 260) { 
+            doc.addPage();
+            y = 10; 
+        }
+        });
+    });
+    
+    function buscarCopias(cjPrincipal) {
+        const copias = [];
+        const baseCJ = cjPrincipal.slice(0, -1);
+        for (var key in groupedData) {
+            if (key.startsWith(baseCJ) && key !== cjPrincipal) {
+                copias.push(    );
+            }
+        }
+        return copias.join(", ");
+    }
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById("exportarButton").addEventListener("click", function() {
+            var dataToExport = [];
+            var missingMEC = [];
+            dataToExport.push(["CJ", "Nombre_Equipo", "MEC"]);
+    
+            Object.keys(groupedData).forEach(cj => {
+                var nombreEquipo = groupedData[cj]['Nombre_Equipo'];
+                const mec = groupedData[cj]['MEC'];
+    
+                dataToExport.push([cj, nombreEquipo, mec]);
+    
+                // Verificar si el MEC está vacío
+                if (mec === "") {
+                    missingMEC.push(cj);
+                }
+            });
+
+            var wb = XLSX.utils.book_new();
+            var ws = XLSX.utils.aoa_to_sheet(dataToExport);
+
+            XLSX.utils.book_append_sheet(wb, ws, "Equipos");
+
+            ws['!cols'] = [{ wpx: 100 }, { wpx: 250 }, { wpx: 100 }];
+
+            if (missingMEC.length > 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Falta MEC',
+                    text: 'Falta el MEC en los siguientes CJ:' + missingMEC.join(", "),
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#F2AE2E',
+                });
+            } else { 
+                XLSX.writeFile(wb, (`${nombreProyecto}.xlsx`));
+                doc.save(`${nombreProyecto}.pdf`);
+            } 
+        });
+    });
+
+    document.getElementById('copiasButton').addEventListener('click', function() {
+
+        const selectedRow = document.querySelector('.selected-row');
+
+        if (!selectedRow) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Equipo no seleccionado',
+                text: 'Por favor, seleccione un equipo primero.',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#F2AE2E',
+            });
+            return;
+        }
+
+        const selectedCJ = selectedRow.getAttribute('data-cj');
+        var MEC = groupedData[selectedCJ]['MEC'] || 'No asignado';
+
+        const prefix = selectedCJ.substring(0, 4); 
+
+        let popupHtml = `<div style="display: flex; justify-content: center;">
+            <table class="table" style="margin: auto;">
+              <thead>
+                <tr>
+                  <th>CJ</th>
+                  <th style="padding-left: 20px;">Nombre Equipo</th>
+                  <th style="">
+                    <label for="selectAll" style="margin-left: 5px;">Seleccionar<br>todo</label>
+                    <input type="checkbox" id="selectAll" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>`;
+ 
+            document.querySelectorAll('#dataTable tbody tr').forEach(row => {
+                const rowCJ = row.getAttribute('data-cj');
+
+                // Revisa si el CJ actual está asignado como 'copia' en cualquier otro registro
+                let esCopiaDeOtro = false;
+                for (let cj in groupedData) {
+                    if (groupedData[cj].copia === rowCJ) {
+                        esCopiaDeOtro = true;
+                        break; // Sale del ciclo si encuentra que es copia
+                    }
+                }
+
+                // Si el CJ actual no es copia de otro y no es el CJ seleccionado, lo añade al HTML
+                if (!esCopiaDeOtro && rowCJ.startsWith(prefix) && rowCJ !== selectedCJ) {
+                    popupHtml += `<tr><td width=10%>${row.children[0].textContent}</td><td>${row.children[1].textContent}</td><td width=16%><input type="checkbox" name="copias" value="${rowCJ}"></td></tr>`;
+                }
+            });
+           
+            popupHtml += '</tbody></table></div>';
+            
+            Swal.fire({
+                title: 'Seleccione las copias del equipo:',
+                html: `<div style="max-height: 400px; overflow-y: auto;">${popupHtml}</div>`,
+                width: '800px',
+                showCancelButton: true,
+                confirmButtonText: 'Guardar',
+                confirmButtonColor: '#F2AE2E',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true,
+                didOpen: () => {
+                    // Agrega un manejador de eventos para la checkbox "Seleccionar todo"
+                    document.getElementById('selectAll').addEventListener('change', function() {
+                        const checkState = this.checked;
+                        document.querySelectorAll('input[name="copias"]').forEach(checkbox => {
+                            checkbox.checked = checkState;
+                        });
+                    });
+                },
+                preConfirm: () => {
+                    const selectedCopies = Array.from(document.querySelectorAll('input[name="copias"]:checked')).map(input => input.value);
+                    // Asigna el valor de cj en el campo groupedData[cj]['copia'] para los elementos marcados
+                    selectedCopies.forEach(cjCopy => {
+                        groupedData[cjCopy]['copia'] = selectedCJ;
+                        groupedData[cjCopy]['MEC'] = groupedData[selectedCJ]['MEC'];
+                    });
+            
+                    // Actualiza la UI o realiza otras acciones necesarias aquí
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Copias actualizadas',
+                        text: 'Las copias seleccionadas han sido actualizadas correctamente.',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#F2AE2E',
+                    });
+            
+                    actualizarListaHijos(selectedCJ);
+                    actualizarTabla(selectedCJ);
+                    configurarEventosTabla();
+
+                }
+            });
+    });
+    
+
+</script>
+{% endblock %}
